@@ -134,6 +134,7 @@ contract Equity is EquityInterface{
                     currentRoundTotal
                 ));
             }
+            lastRoundTotal = 0;
         }else {
             if(address(predefinedCurrency) == address(0)) {
                 payable(owner).transfer(address(this).balance);
@@ -141,6 +142,8 @@ contract Equity is EquityInterface{
                 predefinedCurrency.transfer(owner, 
                 predefinedCurrency.balanceOf(address(this)));
             }
+            currentRoundTotal = 0;
+            lastRoundTotal = 0;
         }
     }
 }
