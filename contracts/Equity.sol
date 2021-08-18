@@ -125,7 +125,7 @@ contract Equity is EquityInterface{
         require(block.timestamp > SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365 days))
         || block.timestamp > SafeMath.add(lastUnlockTime, SafeMath.mul(lockPeriod, 365 days)),
         "You are not able to withdraw yet");
-        if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365))) {
+        if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365 days))) {
             if(address(predefinedCurrency) == address(0)) {
                 payable(owner).transfer(SafeMath.sub(address(this).balance, currentRoundTotal));
             }else {
