@@ -63,8 +63,7 @@ contract Equity is EquityInterface{
     //solidity does not support mapping as function parameter
     function setList(Employee[] memory _list) public {
         require(msg.sender == listContract, "Only the List contract is allowed to call this function");
-        //reseting the list
-        //maybe need a fix
+
         for(uint256 i = 0; i < employees.length; i++) {
             delete list[employees[i]];
         }
@@ -92,8 +91,9 @@ contract Equity is EquityInterface{
                 predefinedCurrency.transfer(owner, amount);
             }
         }
-        //you can delete this line(i use it for testing but it 
-        //does not affect the code in production)
+        /*you can delete this line(I use it for testing so that
+        I don't have to wait for the timer to end but it 
+        does not affect the code in production)*/
         unlockTime = block.timestamp;
         
         require(currentRoundTotal >= total, 
