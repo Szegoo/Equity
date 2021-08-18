@@ -63,7 +63,7 @@ contract Equity is EquityInterface{
     //solidity does not support mapping as function parameter
     function setList(Employee[] memory _list) public {
         require(msg.sender == listContract, "Only the List contract is allowed to call this function");
-
+        //resetting the list
         for(uint256 i = 0; i < employees.length; i++) {
             delete list[employees[i]];
         }
@@ -76,8 +76,8 @@ contract Equity is EquityInterface{
             employees.push(_list[i].employee);
         }
         //if someone was dropped out of the list we can know for
-        //sure that he is not going to be able to withdraw the amount
-        //instead of the contract owner waiting for 2 years to pass
+        //sure that he is not going to be able to withdraw the amount.
+        //Instead of the contract owner waiting for 2 years to pass
         //he can withdraw the kicked person's balance right away
         if(address(predefinedCurrency) == address(0)) {
             if(SafeMath.sub(SafeMath.sub(address(this).balance, total), lastRoundTotal) > 0) {
@@ -89,9 +89,10 @@ contract Equity is EquityInterface{
             total), lastRoundTotal);
             if(amount > 0) {
                 predefinedCurrency.transfer(owner, amount);
+                currentRoundTotal -= amount;
             }
         }
-        /*you can delete this line(I use it for testing so that
+        /*you can delete the next line(I use it for testing so that
         I don't have to wait for the timer to end but it 
         does not affect the code in production)*/
         unlockTime = block.timestamp;
@@ -122,10 +123,10 @@ contract Equity is EquityInterface{
     }
     function ownerWithdraw() public override {
         require(msg.sender == owner, "Only the owner is able to call this function");
-        require(block.timestamp > SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365 days))
-        || block.timestamp > SafeMath.add(lastUnlockTime, SafeMath.mul(lockPeriod, 365 days)),
+        require(block.timestamp > SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))
+        || block.timestamp > SafeMath.add(lastUnlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days)),
         "You are not able to withdraw yet");
-        if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365 days))) {
+        if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))) {
             if(address(predefinedCurrency) == address(0)) {
                 payable(owner).transfer(SafeMath.sub(address(this).balance, currentRoundTotal));
             }else {
