@@ -5,18 +5,17 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-struct Employee {
-    address employee;
-    uint256 amount;
-}
 interface EquityInterface {
     function depositCurrency() external;
     function deposit() external payable;
-    function setList(Employee[] memory _list) external;
     function withdraw() external;
     function ownerWithdraw() external;
 }
 contract Equity is EquityInterface{
+    struct Employee {
+        address employee;
+        uint256 amount;
+    }
     IERC20 public predefinedCurrency;
 
     address public owner;
@@ -45,10 +44,11 @@ contract Equity is EquityInterface{
     //use this function if you have defined a custom predefinedCurrency 
     function depositCurrency() public override {
         require(address(predefinedCurrency) != address(0), "The predefined currency is not defined");
+        require(predefinedCurrency.balanceOf(address(this)) > 0, "Send currency before calling this function");
         require(unlockTime < block.timestamp, "The fund function can only be called once");
         require(msg.sender == owner, "Only the owner can call this function");
         lastRoundTotal = currentRoundTotal;
-        currentRoundTotal = 0;
+        currentRoundTotal = predefinedCurrency.balanceOf(address(this));
         lastUnlockTime = unlockTime;
         unlockTime = SafeMath.add(block.timestamp, SafeMath.mul(lockPeriod, 365 days));
     }
@@ -56,12 +56,12 @@ contract Equity is EquityInterface{
         require(unlockTime < block.timestamp, "The fund function can only be called once");
         require(msg.sender == owner, "Only the owner can call this function");
         lastRoundTotal = currentRoundTotal;
-        currentRoundTotal = 0;
+        currentRoundTotal = msg.value;
         lastUnlockTime = unlockTime;
         unlockTime = SafeMath.add(block.timestamp, SafeMath.mul(lockPeriod, 365 days));
     }
     //solidity does not support mapping as function parameter
-    function setList(Employee[] memory _list) public override {
+    function setList(Employee[] memory _list) public {
         require(msg.sender == listContract, "Only the List contract is allowed to call this function");
         //reseting the list
         //maybe need a fix
@@ -71,13 +71,32 @@ contract Equity is EquityInterface{
         delete employees;
 
         uint256 total = 0;
-        for(uint256 i = 0; i <= _list.length; i++) {
+        for(uint256 i = 0; i < _list.length; i++) {
             total+=_list[i].amount;
             list[_list[i].employee] = _list[i].amount;
             employees.push(_list[i].employee);
         }
-        currentRoundTotal = total;
-        require(predefinedCurrency.balanceOf(address(this)) >= total, 
+        //if someone was dropped out of the list we can know for
+        //sure that he is not going to be able to withdraw the amount
+        //instead of the contract owner waiting for 2 years to pass
+        //he can withdraw the kicked person's balance right away
+        if(address(predefinedCurrency) == address(0)) {
+            if(SafeMath.sub(SafeMath.sub(address(this).balance, total), lastRoundTotal) > 0) {
+                payable(owner).transfer(SafeMath.sub(SafeMath.sub(currentRoundTotal, total), lastRoundTotal));
+                currentRoundTotal -= SafeMath.sub(SafeMath.sub(currentRoundTotal, total), lastRoundTotal);
+            }
+        }else {
+            uint amount = SafeMath.sub(SafeMath.sub(currentRoundTotal,
+            total), lastRoundTotal);
+            if(amount > 0) {
+                predefinedCurrency.transfer(owner, amount);
+            }
+        }
+        //you can delete this line(i use it for testing but it 
+        //does not affect the code in production)
+        unlockTime = block.timestamp;
+        
+        require(currentRoundTotal >= total, 
         "you should provide enough funds before calling this function");
     }
     function withdraw() public override {
@@ -106,17 +125,21 @@ contract Equity is EquityInterface{
         require(block.timestamp > SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365 days))
         || block.timestamp > SafeMath.add(lastUnlockTime, SafeMath.mul(lockPeriod, 365 days)),
         "You are not able to withdraw yet");
-        if(block.timestamp < unlockTime) {
+        if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365))) {
             if(address(predefinedCurrency) == address(0)) {
-                payable(owner).transfer(lastRoundTotal);
+                payable(owner).transfer(SafeMath.sub(address(this).balance, currentRoundTotal));
             }else {
-                predefinedCurrency.transfer(owner, lastRoundTotal);
+                predefinedCurrency.transfer(owner, SafeMath.sub(
+                    predefinedCurrency.balanceOf(address(this)),
+                    currentRoundTotal
+                ));
             }
         }else {
             if(address(predefinedCurrency) == address(0)) {
-                payable(owner).transfer(currentRoundTotal);
+                payable(owner).transfer(address(this).balance);
             }else {
-                predefinedCurrency.transfer(owner, currentRoundTotal);
+                predefinedCurrency.transfer(owner, 
+                predefinedCurrency.balanceOf(address(this)));
             }
         }
     }
