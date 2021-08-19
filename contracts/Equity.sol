@@ -6,23 +6,27 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IEquity {
+    struct Currency {
+        address currency;
+        uint amount;
+    }
     struct Employee {
         address employee;
         uint256 amount;
+        //the currencies that the user gets when calls 
+        //the withdraw function
+        Currency[] currencies;
     }
-    function depositCurrency() external;
-    function deposit() external payable;
+    function deposit() external;
     function withdraw() external;
     function setList(Employee[] memory _list) external;
     function ownerWithdraw() external;
 }
 contract Equity is IEquity{
-    IERC20 public predefinedCurrency;
+    address[] public predefinedCurrencies;
 
     address public owner;
     address public listContract;
-    //keep track of the employees
-    address[] public employees;
 
     uint256 public unlockTime;
     uint256 public lastUnlockTime;
@@ -30,76 +34,83 @@ contract Equity is IEquity{
     uint256 public lockPeriod = 2;
     
     //employee -> amount
-    mapping (address => uint) list;
+    Employee[] public list;
 
-    uint public currentRoundTotal;
-    uint256 public lastRoundTotal;
+    uint[] public currentRoundTotal;
+    uint[] public lastRoundTotal;
 
     //to use the currency of the blockchain(e.g ETH) set the
-    //_predefinedCurrency to address 0x0000000000000000000000000000000000000000
-    constructor(address _listContract, address _predefinedCurrency) {
+    //address of _predefinedCurrency.currency 
+    //to address 0x0000000000000000000000000000000000000000
+    constructor(address _listContract, address[] memory _predefinedCurrencies) {
         owner = msg.sender;
         listContract = _listContract;
-        predefinedCurrency = IERC20(_predefinedCurrency);
+        predefinedCurrencies = _predefinedCurrencies;
     }
     //use this function if you have defined a custom predefinedCurrency 
-    function depositCurrency() public override {
-        require(address(predefinedCurrency) != address(0), "The predefined currency is not defined");
-        require(predefinedCurrency.balanceOf(address(this)) > 0, "Send currency before calling this function");
+    function deposit() public override {
+        //there should be at least one currency
         require(unlockTime < block.timestamp, "The fund function can only be called once");
         require(msg.sender == owner, "Only the owner can call this function");
         lastRoundTotal = currentRoundTotal;
-        currentRoundTotal = predefinedCurrency.balanceOf(address(this));
-        lastUnlockTime = unlockTime;
-        unlockTime = SafeMath.add(block.timestamp, SafeMath.mul(lockPeriod, 365 days));
-    }
-    function deposit() public override payable {
-        require(unlockTime < block.timestamp, "The fund function can only be called once");
-        require(msg.sender == owner, "Only the owner can call this function");
-        lastRoundTotal = currentRoundTotal;
-        currentRoundTotal = msg.value;
+        for(uint i = 0; i < predefinedCurrencies.length; i++) {
+            //maybe need a fix
+            if(predefinedCurrencies[i] == address(0)) {
+                currentRoundTotal[i] = SafeMath.sub(
+                    address(this).balance, lastRoundTotal[i]
+                );
+            }else {
+                currentRoundTotal[i] = SafeMath.sub(
+                    IERC20(predefinedCurrencies[i]).balanceOf(address(this))
+                    ,lastRoundTotal[i]);
+            }
+        }
         lastUnlockTime = unlockTime;
         unlockTime = SafeMath.add(block.timestamp, SafeMath.mul(lockPeriod, 365 days));
     }
     //solidity does not support mapping as function parameter
     function setList(Employee[] memory _list) public override {
         require(msg.sender == listContract, "Only the List contract is allowed to call this function");
-        //resetting the list
-        for(uint256 i = 0; i < employees.length; i++) {
-            delete list[employees[i]];
-        }
-        delete employees;
+        delete list;
 
-        uint256 total = 0;
+        list = _list;
+        uint256[] memory total;
         for(uint256 i = 0; i < _list.length; i++) {
-            total+=_list[i].amount;
-            list[_list[i].employee] = _list[i].amount;
-            employees.push(_list[i].employee);
-        }
-        //if someone was dropped out of the list we can know for
-        //sure that he is not going to be able to withdraw the amount.
-        //Instead of the contract owner waiting for 2 years to pass
-        //he can withdraw the kicked person's balance right away
-        if(address(predefinedCurrency) == address(0)) {
-            if(SafeMath.sub(SafeMath.sub(address(this).balance, total), lastRoundTotal) > 0) {
-                payable(owner).transfer(SafeMath.sub(SafeMath.sub(currentRoundTotal, total), lastRoundTotal));
-                currentRoundTotal -= SafeMath.sub(SafeMath.sub(currentRoundTotal, total), lastRoundTotal);
-            }
-        }else {
-            uint amount = SafeMath.sub(SafeMath.sub(currentRoundTotal,
-            total), lastRoundTotal);
-            if(amount > 0) {
-                predefinedCurrency.transfer(owner, amount);
-                currentRoundTotal -= amount;
-            }
+            total[i] = _list[i].amount;
         }
         /*you can delete the next line(I use it for testing so that
         I don't have to wait for the timer to end but it 
         does not affect the code in production)*/
         unlockTime = block.timestamp;
         
-        require(currentRoundTotal >= total, 
-        "you should provide enough funds before calling this function");
+        //checking if the contract has enough funds
+        for(uint256 i = 0; i < total.length; i++) {
+            uint256 amount;
+            if(predefinedCurrencies[i] == address(0)) {
+                amount = SafeMath.sub(address(this).balance, lastRoundTotal[i]);
+            }else {
+                amount = SafeMath.sub(
+                    IERC20(predefinedCurrencies[i]).balanceOf(address(this)),
+                    lastRoundTotal[i]
+                );
+            }
+            require(amount >= total[i], "you should provide enough funds before calling this function");
+            //if someone was dropped out of the list we can know for
+            //sure that he is not going to be able to withdraw the amount.
+            //Instead of the contract owner waiting for 2 years to pass
+            //he can withdraw the kicked person's balance right away
+            if(predefinedCurrencies[i] == address(0)) {
+                if(SafeMath.sub(total[i], amount) > 0) {
+                    payable(owner).transfer(SafeMath.sub(total[i], amount));
+                }
+            }else {
+                if(SafeMath.sub(total[i], amount) > 0) {
+                    IERC20(predefinedCurrencies[i]).transfer(owner,
+                    SafeMath.sub(total[i], amount));
+                }
+            }
+            currentRoundTotal[i] -= SafeMath.sub(total[i], amount);
+        }
     }
     function withdraw() public override {
         require(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365 days))
@@ -107,19 +118,27 @@ contract Equity is IEquity{
         "Your are not allowed to withdraw anymore");
         require(unlockTime < block.timestamp || lastUnlockTime < block.timestamp,
          "Your are not allowed to withdraw yet");
-        require(list[msg.sender] != 0, "You can't withdraw 0");
-        //I reset the amount before sending it to prevent double spending
-        uint256 amount = list[msg.sender];
-        list[msg.sender] = 0;
-        if(block.timestamp < unlockTime) {
-            lastRoundTotal -= amount;
-        }else {
-            currentRoundTotal -= amount;
-        }
-        if(address(predefinedCurrency) == address(0)) {
-            payable(msg.sender).transfer(amount);
-        }else {
-            predefinedCurrency.transfer(msg.sender, amount);
+        for(uint i = 0; i < list.length; i++) {
+            if(list[i].employee == msg.sender) {
+                Currency[] storage amounts = list[i].currencies;
+                //I reset the amount before sending it to prevent double spending
+                delete list[i];
+                for(uint j = 0; j < amounts.length; j++) {
+                    if(amounts[j].amount > 0) {
+                        if(block.timestamp < unlockTime) {
+                            lastRoundTotal[j] -= amounts[j].amount;
+                        }else {
+                            currentRoundTotal[j] -= amounts[j].amount;
+                        }
+                        if(address(amounts[j].currency) == address(0)) {
+                            payable(msg.sender).transfer(amounts[j].amount);
+                        }else {
+                            IERC20(amounts[j].currency).transfer(msg.sender, amounts[j].amount);
+                        }
+                    }
+                }
+                break;
+            }
         }
     }
     function ownerWithdraw() public override {
@@ -128,24 +147,30 @@ contract Equity is IEquity{
         || block.timestamp > SafeMath.add(lastUnlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days)),
         "You are not able to withdraw yet");
         if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))) {
-            if(address(predefinedCurrency) == address(0)) {
-                payable(owner).transfer(SafeMath.sub(address(this).balance, currentRoundTotal));
-            }else {
-                predefinedCurrency.transfer(owner, SafeMath.sub(
-                    predefinedCurrency.balanceOf(address(this)),
-                    currentRoundTotal
-                ));
+            for(uint256 i = 0; i < predefinedCurrencies.length; i++) {
+                if(lastRoundTotal[i] > 0) {
+                    if(address(predefinedCurrencies[i]) == address(0)) {
+                        payable(owner).transfer(SafeMath.sub(address(this).balance, currentRoundTotal[i]));
+                    }else {
+                        IERC20(predefinedCurrencies[i]).transfer(owner, SafeMath.sub(
+                           IERC20(predefinedCurrencies[i]).balanceOf(address(this)),
+                            currentRoundTotal[i]
+                        ));
+                    }
+                }
             }
-            lastRoundTotal = 0;
+            delete lastRoundTotal;
         }else {
-            if(address(predefinedCurrency) == address(0)) {
-                payable(owner).transfer(address(this).balance);
-            }else {
-                predefinedCurrency.transfer(owner, 
-                predefinedCurrency.balanceOf(address(this)));
+            for(uint256 i = 0; i < predefinedCurrencies.length; i++) {
+                if(address(predefinedCurrencies[i]) == address(0)) {
+                    payable(owner).transfer(address(this).balance);
+                }else {
+                    IERC20(predefinedCurrencies[i]).transfer(owner, 
+                    IERC20(predefinedCurrencies[i]).balanceOf(address(this)));
+                }
+                delete currentRoundTotal;
+                delete lastRoundTotal;
             }
-            currentRoundTotal = 0;
-            lastRoundTotal = 0;
         }
     }
 }
