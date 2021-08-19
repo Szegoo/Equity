@@ -25,16 +25,20 @@ contract List {
         oracle = _oracle;
     }    
     modifier onlyOracle {
-        require(msg.sender == owner, "Only the oracle is able to call this function");
+        require(msg.sender == oracle, "Only the oracle is able to call this function");
         _;
     }
-    function setEquityContract(address contractAddress) public onlyOracle {
+    modifier onlyOwner {
+        require(msg.sender == owner, "Only the owner is able to call this function");
+        _;
+    }
+    function setEquityContract(address contractAddress) public onlyOwner {
         //checking if the equity contract is already set
         require(address(equity) != address(0), "The equity contract is already set");
         equity = IEquity(contractAddress);
     }
     //this function should be called only once in a round
-    function addList(IEquity.Employee[] memory _list) public {
+    function addList(IEquity.Employee[] memory _list) public onlyOwner {
         require(list.length == 0, "You can set this only once");
         list = _list;
     }
@@ -58,5 +62,6 @@ contract List {
     }
     function sendList() public onlyOracle {
         equity.setList(list);
+        delete list;
     }
 }
