@@ -5,17 +5,18 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface EquityInterface {
-    function depositCurrency() external;
-    function deposit() external payable;
-    function withdraw() external;
-    function ownerWithdraw() external;
-}
-contract Equity is EquityInterface{
+interface IEquity {
     struct Employee {
         address employee;
         uint256 amount;
     }
+    function depositCurrency() external;
+    function deposit() external payable;
+    function withdraw() external;
+    function setList(Employee[] memory _list) external;
+    function ownerWithdraw() external;
+}
+contract Equity is IEquity{
     IERC20 public predefinedCurrency;
 
     address public owner;
@@ -61,7 +62,7 @@ contract Equity is EquityInterface{
         unlockTime = SafeMath.add(block.timestamp, SafeMath.mul(lockPeriod, 365 days));
     }
     //solidity does not support mapping as function parameter
-    function setList(Employee[] memory _list) public {
+    function setList(Employee[] memory _list) public override {
         require(msg.sender == listContract, "Only the List contract is allowed to call this function");
         //resetting the list
         for(uint256 i = 0; i < employees.length; i++) {
