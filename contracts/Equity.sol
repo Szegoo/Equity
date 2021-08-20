@@ -12,7 +12,6 @@ interface IEquity {
     }
     struct Employee {
         address employee;
-        uint256 amount;
         //the currencies that the user gets when calls 
         //the withdraw function
         Currency[] currencies;
@@ -76,7 +75,9 @@ contract Equity is IEquity{
         list = _list;
         uint256[] memory total;
         for(uint256 i = 0; i < _list.length; i++) {
-            total[i] = _list[i].amount;
+            for(uint256 k = 0; k < _list[i].currencies.length; k++) {
+                total[i] = _list[i].currencies[k].amount;
+            }
         }
         /*you can delete the next line(I use it for testing so that
         I don't have to wait for the timer to end but it 

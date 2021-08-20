@@ -9,10 +9,11 @@ contract List {
 
     struct RemovedEmployee {
         uint256 timeWhenRemoved;
-        uint256 amount;
+        IEquity.Currency[] currencies;
     }
 
     address public oracle;
+    uint256 public unlockTime;
 
     address public owner;
     IEquity.Employee[] public list;
@@ -20,13 +21,8 @@ contract List {
     //this mapping stores an address only for 30 days
     mapping(address => RemovedEmployee) public removedEmployees;
 
-    constructor(address _oracle) {
+    constructor() {
         owner = msg.sender;
-        oracle = _oracle;
-    }    
-    modifier onlyOracle {
-        require(msg.sender == oracle, "Only the oracle is able to call this function");
-        _;
     }
     modifier onlyOwner {
         require(msg.sender == owner, "Only the owner is able to call this function");
@@ -34,33 +30,35 @@ contract List {
     }
     function setEquityContract(address contractAddress) public onlyOwner {
         //checking if the equity contract is already set
-        require(address(equity) != address(0), "The equity contract is already set");
+        require(address(equity) == address(0), "The equity contract is already set");
         equity = IEquity(contractAddress);
     }
     //this function should be called only once in a round
     function addList(IEquity.Employee[] memory _list) public onlyOwner {
         require(list.length == 0, "You can set this only once");
+        unlockTime = SafeMath.add(block.timestamp, 365 days);
         list = _list;
     }
     //only the oracle is able to call this function
-    function remove(address employee) public onlyOracle {
+    function remove(address employee) public onlyOwner {
         for(uint256 i = 0; i < list.length; i++) {
             if(list[i].employee == employee) {
                 //this leaves a gap in the array
                 removedEmployees[employee] = RemovedEmployee(
-                    block.timestamp, list[i].amount
+                    block.timestamp, list[i].currencies
                 );
                 delete list[i];
             }
         } 
     }
-    function returnRemoved(address employee) public onlyOracle {
+    function returnRemoved(address employee) public onlyOwner {
         require(removedEmployees[employee].timeWhenRemoved + 30 days > block.timestamp,
         "You are not able to return the employee anymore");
-        list.push(IEquity.Employee(employee, removedEmployees[employee].amount));
+        list.push(IEquity.Employee(employee, removedEmployees[employee].currencies));
         delete removedEmployees[employee];
     }
-    function sendList() public onlyOracle {
+    function sendList() public {
+        require(block.timestamp > unlockTime, "You are not able to send the list yet");
         equity.setList(list);
         delete list;
     }
