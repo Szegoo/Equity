@@ -1,9 +1,11 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
+import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
+import "@chainlink/contracts/src/v0.6/interfaces/KeeperCompatibleInterface.sol";
 import "./Equity.sol";
 
-contract List {
+contract List is KeeperCompatibleInterface {
     struct RemovedEmployee {
         address employee;
         uint256 timeWhenRemoved;
@@ -45,6 +47,13 @@ contract List {
                 break;
             }
         }
+    } 
+    function checkUpkeep(bytes calldata) external override returns (bool upkeepNeeded, bytes memory) {
+        upkeepNeeded = block.timestamp > unlockTime;
+    }
+    function performUpkeep(bytes calldata) external override {
+        equity.setList(list);
+        delete list;
     }
     //only the oracle is able to call this function
     function remove(address employee) public onlyOwner {
@@ -72,9 +81,5 @@ contract List {
                 delete removedEmployees[i];
             }
         }
-    }
-    function sendList() internal {
-        equity.setList(list);
-        delete list;
     }
 }
