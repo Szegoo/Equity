@@ -36,12 +36,9 @@ contract List {
         require(list.length == 0, "You can set this only once");
         require(address(equity) != address(0), "Set the Equity contract address before calling this function");
         unlockTime = SafeMath.add(block.timestamp, 365 days);
-        for(uint256 i = 0; i < _list.length; i++) {
-            list[i].employee = _list[i].employee;
-            for(uint256 k = 0; k < _list[i].currencies.length; k++) {
-                list[i].currencies[k] = _list[i].currencies[k]; 
-            }
-        } 
+        for(uint i = 0; i < _list.length; i++) {
+            list.push(_list[i]);
+        }
         while(true) {
             if(block.timestamp == unlockTime) {
                 sendList();
@@ -56,7 +53,8 @@ contract List {
                 //this leaves a gap in the array
                 removedEmployees[removedEmployees.length+1].employee = employee; 
                 for(uint256 k = 0; k < list[i].currencies.length; k++) {
-                    removedEmployees[removedEmployees.length+1].currencies[k] = list[i].currencies[k];
+                    removedEmployees[removedEmployees.length+1].currencies[k] = IEquity.Currency(list[i].currencies[k],
+                    list[i].amounts[k]);
                 }
                 delete list[i];
             }

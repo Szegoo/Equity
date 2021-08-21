@@ -14,7 +14,8 @@ interface IEquity {
         address employee;
         //the currencies that the user gets when calls 
         //the withdraw function
-        Currency[10] currencies;
+        address[] currencies;
+        uint[] amounts;
     }
     function deposit() external;
     function withdraw() external;
@@ -72,16 +73,13 @@ contract Equity is IEquity{
         require(msg.sender == listContract, "Only the List contract is allowed to call this function");
         delete list;
 
-        for(uint256 i = 0; i < _list.length; i++) {
-            list[i].employee = _list[i].employee;
-            for(uint256 k = 0; k < _list[i].currencies.length; k++) {
-                list[i].currencies[k] = _list[i].currencies[k]; 
-            }
+        for(uint i = 0; i < _list.length; i++) {
+            list.push(_list[i]);
         }
         uint256[] memory total;
         for(uint256 i = 0; i < _list.length; i++) {
             for(uint256 k = 0; k < _list[i].currencies.length; k++) {
-                total[i] = _list[i].currencies[k].amount;
+                total[i] = _list[i].amounts[k];
             }
         }
         /*you can delete the next line(I use it for testing so that
@@ -126,20 +124,20 @@ contract Equity is IEquity{
          "Your are not allowed to withdraw yet");
         for(uint i = 0; i < list.length; i++) {
             if(list[i].employee == msg.sender) {
-                Currency[10] storage amounts = list[i].currencies;
+                uint[] storage amounts = list[i].amounts;
                 //I reset the amount before sending it to prevent double spending
                 delete list[i];
                 for(uint j = 0; j < amounts.length; j++) {
-                    if(amounts[j].amount > 0) {
+                    if(amounts[j] > 0) {
                         if(block.timestamp < unlockTime) {
-                            lastRoundTotal[j] -= amounts[j].amount;
+                            lastRoundTotal[j] -= amounts[j];
                         }else {
-                            currentRoundTotal[j] -= amounts[j].amount;
+                            currentRoundTotal[j] -= amounts[j];
                         }
-                        if(address(amounts[j].currency) == address(0)) {
-                            payable(msg.sender).transfer(amounts[j].amount);
+                        if(address(list[i].currencies[j]) == address(0)) {
+                            payable(msg.sender).transfer(amounts[j]);
                         }else {
-                            IERC20(amounts[j].currency).transfer(msg.sender, amounts[j].amount);
+                            IERC20(list[i].currencies[j]).transfer(msg.sender, amounts[j]);
                         }
                     }
                 }
