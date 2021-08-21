@@ -41,12 +41,6 @@ contract List is KeeperCompatibleInterface {
         for(uint i = 0; i < _list.length; i++) {
             list.push(_list[i]);
         }
-        while(true) {
-            if(block.timestamp == unlockTime) {
-                sendList();
-                break;
-            }
-        }
     } 
     function checkUpkeep(bytes calldata) external override returns (bool upkeepNeeded, bytes memory) {
         upkeepNeeded = block.timestamp > unlockTime;
