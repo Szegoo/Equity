@@ -37,15 +37,16 @@ contract List is KeeperCompatibleInterface {
     function addList(IEquity.Employee[] memory _list) public onlyOwner {
         require(list.length == 0, "You can set this only once");
         require(address(equity) != address(0), "Set the Equity contract address before calling this function");
-        unlockTime = SafeMath.add(block.timestamp, 365 days);
+        unlockTime = SafeMath.add(block.timestamp, 2 minutes);
         for(uint i = 0; i < _list.length; i++) {
             list.push(_list[i]);
         }
     } 
     function checkUpkeep(bytes calldata) external override returns (bool upkeepNeeded, bytes memory) {
-        upkeepNeeded = block.timestamp > unlockTime;
+        upkeepNeeded = block.timestamp > unlockTime && unlockTime > 0;
     }
     function performUpkeep(bytes calldata) external override {
+        require(block.timestamp > unlockTime);
         equity.setList(list);
         delete list;
     }
