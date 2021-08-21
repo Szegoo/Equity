@@ -14,7 +14,7 @@ interface IEquity {
         address employee;
         //the currencies that the user gets when calls 
         //the withdraw function
-        Currency[] currencies;
+        Currency[10] currencies;
     }
     function deposit() external;
     function withdraw() external;
@@ -72,7 +72,12 @@ contract Equity is IEquity{
         require(msg.sender == listContract, "Only the List contract is allowed to call this function");
         delete list;
 
-        list = _list;
+        for(uint256 i = 0; i < _list.length; i++) {
+            list[i].employee = _list[i].employee;
+            for(uint256 k = 0; k < _list[i].currencies.length; k++) {
+                list[i].currencies[k] = _list[i].currencies[k]; 
+            }
+        }
         uint256[] memory total;
         for(uint256 i = 0; i < _list.length; i++) {
             for(uint256 k = 0; k < _list[i].currencies.length; k++) {
@@ -121,7 +126,7 @@ contract Equity is IEquity{
          "Your are not allowed to withdraw yet");
         for(uint i = 0; i < list.length; i++) {
             if(list[i].employee == msg.sender) {
-                Currency[] storage amounts = list[i].currencies;
+                Currency[10] storage amounts = list[i].currencies;
                 //I reset the amount before sending it to prevent double spending
                 delete list[i];
                 for(uint j = 0; j < amounts.length; j++) {

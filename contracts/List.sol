@@ -1,13 +1,11 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "./Equity.sol";
 
 contract List {
-    using Chainlink for Chainlink.Request;
-
     struct RemovedEmployee {
+        address employee;
         uint256 timeWhenRemoved;
         IEquity.Currency[] currencies;
     }
@@ -19,7 +17,7 @@ contract List {
     IEquity.Employee[] public list;
     IEquity public equity;
     //this mapping stores an address only for 30 days
-    mapping(address => RemovedEmployee) public removedEmployees;
+    RemovedEmployee[] public removedEmployees;
 
     constructor() {
         owner = msg.sender;
@@ -36,29 +34,48 @@ contract List {
     //this function should be called only once in a round
     function addList(IEquity.Employee[] memory _list) public onlyOwner {
         require(list.length == 0, "You can set this only once");
+        require(address(equity) != address(0), "Set the Equity contract address before calling this function");
         unlockTime = SafeMath.add(block.timestamp, 365 days);
-        list = _list;
+        for(uint256 i = 0; i < _list.length; i++) {
+            list[i].employee = _list[i].employee;
+            for(uint256 k = 0; k < _list[i].currencies.length; k++) {
+                list[i].currencies[k] = _list[i].currencies[k]; 
+            }
+        } 
+        while(true) {
+            if(block.timestamp == unlockTime) {
+                sendList();
+                break;
+            }
+        }
     }
     //only the oracle is able to call this function
     function remove(address employee) public onlyOwner {
         for(uint256 i = 0; i < list.length; i++) {
             if(list[i].employee == employee) {
                 //this leaves a gap in the array
-                removedEmployees[employee] = RemovedEmployee(
-                    block.timestamp, list[i].currencies
-                );
+                removedEmployees[removedEmployees.length+1].employee = employee; 
+                for(uint256 k = 0; k < list[i].currencies.length; k++) {
+                    removedEmployees[removedEmployees.length+1].currencies[k] = list[i].currencies[k];
+                }
                 delete list[i];
             }
         } 
     }
     function returnRemoved(address employee) public onlyOwner {
-        require(removedEmployees[employee].timeWhenRemoved + 30 days > block.timestamp,
-        "You are not able to return the employee anymore");
-        list.push(IEquity.Employee(employee, removedEmployees[employee].currencies));
-        delete removedEmployees[employee];
+        for(uint i = 0; i < removedEmployees.length; i++) {
+            if(removedEmployees[i].employee == employee) {
+                require(removedEmployees[i].timeWhenRemoved + 30 days < block.timestamp,
+                    "You are not able to return the employee anymore");
+                list[list.length+1].employee = employee;
+                for(uint k = 0; k < removedEmployees[i].currencies.length; k++) {
+                    list[list.length+1].currencies[k] = list[list.length+1].currencies[k];
+                }
+                delete removedEmployees[i];
+            }
+        }
     }
-    function sendList() public {
-        require(block.timestamp > unlockTime, "You are not able to send the list yet");
+    function sendList() internal {
         equity.setList(list);
         delete list;
     }
