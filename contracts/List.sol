@@ -1,11 +1,9 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
-import "@chainlink/contracts/src/v0.6/interfaces/KeeperCompatibleInterface.sol";
 import "./Equity.sol";
 
-contract List is KeeperCompatibleInterface {
+contract List {
     struct RemovedEmployee {
         address employee;
         uint256 timeWhenRemoved;
@@ -37,18 +35,16 @@ contract List is KeeperCompatibleInterface {
     function addList(IEquity.Employee[] memory _list) public onlyOwner {
         require(list.length == 0, "You can set this only once");
         require(address(equity) != address(0), "Set the Equity contract address before calling this function");
-        unlockTime = SafeMath.add(block.timestamp, 2 minutes);
+        unlockTime = SafeMath.add(block.timestamp, 365 days);
         for(uint i = 0; i < _list.length; i++) {
             list.push(_list[i]);
         }
-    } 
-    function checkUpkeep(bytes calldata) external override returns (bool upkeepNeeded, bytes memory) {
-        upkeepNeeded = block.timestamp > unlockTime && unlockTime > 0;
-    }
-    function performUpkeep(bytes calldata) external override {
-        require(block.timestamp > unlockTime);
-        equity.setList(list);
-        delete list;
+        while(true) {
+            if(block.timestamp == unlockTime) {
+                sendList();
+                break;
+            }
+        }
     }
     //only the oracle is able to call this function
     function remove(address employee) public onlyOwner {
@@ -76,5 +72,9 @@ contract List is KeeperCompatibleInterface {
                 delete removedEmployees[i];
             }
         }
+    }
+    function sendList() internal {
+        equity.setList(list);
+        delete list;
     }
 }
