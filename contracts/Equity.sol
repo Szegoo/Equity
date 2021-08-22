@@ -54,7 +54,6 @@ contract Equity is IEquity{
         require(msg.sender == owner, "Only the owner can call this function");
         lastRoundTotal = currentRoundTotal;
         for(uint i = 0; i < predefinedCurrencies.length; i++) {
-            //maybe need a fix
             if(predefinedCurrencies[i] == address(0)) {
                 currentRoundTotal[i] = SafeMath.sub(
                     address(this).balance, lastRoundTotal[i]
@@ -71,50 +70,16 @@ contract Equity is IEquity{
     //solidity does not support mapping as function parameter
     function setList(Employee[] memory _list) public override {
         require(msg.sender == listContract, "Only the List contract is allowed to call this function");
+        //resetting the list before updating it
         delete list;
 
         for(uint i = 0; i < _list.length; i++) {
             list.push(_list[i]);
         }
-        uint256[] memory total;
-        for(uint256 i = 0; i < _list.length; i++) {
-            for(uint256 k = 0; k < _list[i].currencies.length; k++) {
-                total[i] = _list[i].amounts[k];
-            }
-        }
         /*you can delete the next line(I use it for testing so that
         I don't have to wait for the timer to end but it 
         does not affect the code in production)*/
         unlockTime = block.timestamp;
-        
-        //checking if the contract has enough funds
-        for(uint256 i = 0; i < total.length; i++) {
-            uint256 amount;
-            if(predefinedCurrencies[i] == address(0)) {
-                amount = SafeMath.sub(address(this).balance, lastRoundTotal[i]);
-            }else {
-                amount = SafeMath.sub(
-                    IERC20(predefinedCurrencies[i]).balanceOf(address(this)),
-                    lastRoundTotal[i]
-                );
-            }
-            require(amount >= total[i], "you should provide enough funds before calling this function");
-            //if someone was dropped out of the list we can know for
-            //sure that he is not going to be able to withdraw the amount.
-            //Instead of the contract owner waiting for 2 years to pass
-            //he can withdraw the kicked person's balance right away
-            if(predefinedCurrencies[i] == address(0)) {
-                if(SafeMath.sub(total[i], amount) > 0) {
-                    payable(owner).transfer(SafeMath.sub(total[i], amount));
-                }
-            }else {
-                if(SafeMath.sub(total[i], amount) > 0) {
-                    IERC20(predefinedCurrencies[i]).transfer(owner,
-                    SafeMath.sub(total[i], amount));
-                }
-            }
-            currentRoundTotal[i] -= SafeMath.sub(total[i], amount);
-        }
     }
     function withdraw() public override {
         require(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365 days))
