@@ -6,10 +6,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IEquity {
-    struct Currency {
-        address currency;
-        uint amount;
-    }
     struct Employee {
         address employee;
         //the currencies that the user gets when calls 
@@ -54,6 +50,7 @@ contract Equity is IEquity{
         require(msg.sender == owner, "Only the owner can call this function");
         lastRoundTotal = currentRoundTotal;
         for(uint i = 0; i < predefinedCurrencies.length; i++) {
+            //maybe need a fix
             if(predefinedCurrencies[i] == address(0)) {
                 currentRoundTotal[i] = SafeMath.sub(
                     address(this).balance, lastRoundTotal[i]
@@ -70,7 +67,6 @@ contract Equity is IEquity{
     //solidity does not support mapping as function parameter
     function setList(Employee[] memory _list) public override {
         require(msg.sender == listContract, "Only the List contract is allowed to call this function");
-        //resetting the list before updating it
         delete list;
 
         for(uint i = 0; i < _list.length; i++) {

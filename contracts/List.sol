@@ -7,7 +7,8 @@ contract List {
     struct RemovedEmployee {
         address employee;
         uint256 timeWhenRemoved;
-        IEquity.Currency[] currencies;
+        address[] currencies;
+        uint256[] amounts;
     }
 
     address public oracle;
@@ -19,11 +20,16 @@ contract List {
     //this mapping stores an address only for 30 days
     RemovedEmployee[] public removedEmployees;
 
-    constructor() {
+    constructor(address _oracle) {
         owner = msg.sender;
+        oracle = _oracle;
     }
     modifier onlyOwner {
         require(msg.sender == owner, "Only the owner is able to call this function");
+        _;
+    }
+    modifier onlyOracle {
+        require(msg.sender == oracle, "Only the oracle is able to call this function");
         _;
     }
     function setEquityContract(address contractAddress) public onlyOwner {
@@ -47,28 +53,24 @@ contract List {
         }
     }
     //only the oracle is able to call this function
-    function remove(address employee) public onlyOwner {
+    function remove(address employee) public onlyOracle {
         for(uint256 i = 0; i < list.length; i++) {
             if(list[i].employee == employee) {
                 //this leaves a gap in the array
-                removedEmployees[removedEmployees.length+1].employee = employee; 
-                for(uint256 k = 0; k < list[i].currencies.length; k++) {
-                    removedEmployees[removedEmployees.length+1].currencies[k] = IEquity.Currency(list[i].currencies[k],
-                    list[i].amounts[k]);
-                }
+                removedEmployees.push(RemovedEmployee(list[i].employee, 
+                block.timestamp, list[i].currencies, list[i].amounts)); 
                 delete list[i];
             }
         } 
     }
-    function returnRemoved(address employee) public onlyOwner {
+    function returnRemoved(address employee) public onlyOracle {
         for(uint i = 0; i < removedEmployees.length; i++) {
             if(removedEmployees[i].employee == employee) {
-                require(removedEmployees[i].timeWhenRemoved + 30 days < block.timestamp,
+                //you have only 30 days to return an employee to the list
+                require(removedEmployees[i].timeWhenRemoved + 30 days > block.timestamp,
                     "You are not able to return the employee anymore");
-                list[list.length+1].employee = employee;
-                for(uint k = 0; k < removedEmployees[i].currencies.length; k++) {
-                    list[list.length+1].currencies[k] = list[list.length+1].currencies[k];
-                }
+                list.push(IEquity.Employee(removedEmployees[i].employee, removedEmployees[i].currencies,
+                removedEmployees[i].amounts));
                 delete removedEmployees[i];
             }
         }
