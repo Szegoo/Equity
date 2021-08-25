@@ -42,6 +42,7 @@ contract Equity is IEquity{
         owner = msg.sender;
         listContract = _listContract;
         predefinedCurrencies = _predefinedCurrencies;
+        lastRoundTotal.push(0);
     }
     //use this function if you have defined a custom predefinedCurrency 
     function deposit() public override {
@@ -103,17 +104,17 @@ contract Equity is IEquity{
     }
     function setCurrentRoundTotal(address currency, uint indx) internal {
         uint lastTotal = 0;
-        if(lastRoundTotal.length > indx) {
+        if(lastRoundTotal.length > indx && lastRoundTotal[indx] > lastTotal) {
             lastTotal = lastRoundTotal[indx];
         }
         if(currency == address(0)) {
-            currentRoundTotal[indx] = SafeMath.sub(
+            currentRoundTotal.push(SafeMath.sub(
                 address(this).balance, lastTotal
-            );
+            ));
         }else {
-            currentRoundTotal[indx] = SafeMath.sub(
+            currentRoundTotal.push(SafeMath.sub(
                 IERC20(predefinedCurrencies[indx]).balanceOf(address(this))
-                ,lastTotal);
+                ,lastTotal));
         }
     }
     //returns the index of the employee in the list array
