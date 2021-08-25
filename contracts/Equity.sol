@@ -52,8 +52,7 @@ contract Equity is IEquity{
         for(uint i = 0; i < predefinedCurrencies.length; i++) {
             setCurrentRoundTotal(predefinedCurrencies[i], i);
         }
-        lastUnlockTime = unlockTime;
-        unlockTime = SafeMath.add(block.timestamp, SafeMath.mul(lockPeriod, 365 days));
+        setUnlockTime();
     }
     //solidity does not support mapping as function parameter
     function setList(Employee[] memory _list) public override {
@@ -165,5 +164,9 @@ contract Equity is IEquity{
                 .balanceOf(address(this)), subtractionAmount);
         }
         return amount;
+    }
+    function setUnlockTime() internal {
+        lastUnlockTime = unlockTime;
+        unlockTime = SafeMath.add(block.timestamp, SafeMath.mul(lockPeriod, 365 days));
     }
 }
