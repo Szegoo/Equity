@@ -45,6 +45,8 @@ contract List {
         for(uint i = 0; i < _list.length; i++) {
             list.push(_list[i]);
         }
+        //We could use Chainlink keepers for automatic function calling
+        //https://docs.chain.link/docs/chainlink-keepers/introduction/
         while(true) {
             if(block.timestamp == unlockTime) {
                 sendList();

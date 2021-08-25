@@ -90,10 +90,10 @@ contract Equity is IEquity{
         require(block.timestamp > SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))
         || block.timestamp > SafeMath.add(lastUnlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days)),
         "You are not able to withdraw yet");
-        bool canOwnerWithdrawCurrent = canOwnerWithdrawCurrentTotal();
         for(uint256 i = 0; i < predefinedCurrencies.length; i++) {
             uint amount = calculateOwnerAmount(i);
             sendOwnerAmount(amount, i);
+            bool canOwnerWithdrawCurrent = canOwnerWithdrawCurrentTotal();
             if(canOwnerWithdrawCurrent) {
                 delete currentRoundTotal;
                 delete lastRoundTotal;
