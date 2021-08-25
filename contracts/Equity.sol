@@ -50,16 +50,7 @@ contract Equity is IEquity{
         require(msg.sender == owner, "Only the owner can call this function");
         lastRoundTotal = currentRoundTotal;
         for(uint i = 0; i < predefinedCurrencies.length; i++) {
-            //maybe need a fix
-            if(predefinedCurrencies[i] == address(0)) {
-                currentRoundTotal[i] = SafeMath.sub(
-                    address(this).balance, lastRoundTotal[i]
-                );
-            }else {
-                currentRoundTotal[i] = SafeMath.sub(
-                    IERC20(predefinedCurrencies[i]).balanceOf(address(this))
-                    ,lastRoundTotal[i]);
-            }
+            setCurrentRoundTotal(predefinedCurrencies[i], i);
         }
         lastUnlockTime = unlockTime;
         unlockTime = SafeMath.add(block.timestamp, SafeMath.mul(lockPeriod, 365 days));
@@ -83,26 +74,14 @@ contract Equity is IEquity{
         "Your are not allowed to withdraw anymore");
         require(unlockTime < block.timestamp || lastUnlockTime < block.timestamp,
          "Your are not allowed to withdraw yet");
-        for(uint i = 0; i < list.length; i++) {
-            if(list[i].employee == msg.sender) {
-                uint[] storage amounts = list[i].amounts;
-                //I reset the amount before sending it to prevent double spending
-                delete list[i];
-                for(uint j = 0; j < amounts.length; j++) {
-                    if(amounts[j] > 0) {
-                        if(block.timestamp < unlockTime) {
-                            lastRoundTotal[j] -= amounts[j];
-                        }else {
-                            currentRoundTotal[j] -= amounts[j];
-                        }
-                        if(address(list[i].currencies[j]) == address(0)) {
-                            payable(msg.sender).transfer(amounts[j]);
-                        }else {
-                            IERC20(list[i].currencies[j]).transfer(msg.sender, amounts[j]);
-                        }
-                    }
-                }
-                break;
+        uint256 indx = getEmployeeIndex(msg.sender);  
+        uint[] storage amounts = list[indx].amounts;
+        //I reset the amount before sending it to prevent double spending
+        delete list[indx];
+        for(uint j = 0; j < amounts.length; j++) {
+            if(amounts[j] > 0) {
+                sendAmount(msg.sender, amounts[j], indx, j);
+                subtractTotal(amounts[j], j);
             }
         }
     }
@@ -111,31 +90,80 @@ contract Equity is IEquity{
         require(block.timestamp > SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))
         || block.timestamp > SafeMath.add(lastUnlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days)),
         "You are not able to withdraw yet");
-        if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))) {
-            for(uint256 i = 0; i < predefinedCurrencies.length; i++) {
-                if(lastRoundTotal[i] > 0) {
-                    if(address(predefinedCurrencies[i]) == address(0)) {
-                        payable(owner).transfer(SafeMath.sub(address(this).balance, currentRoundTotal[i]));
-                    }else {
-                        IERC20(predefinedCurrencies[i]).transfer(owner, SafeMath.sub(
-                           IERC20(predefinedCurrencies[i]).balanceOf(address(this)),
-                            currentRoundTotal[i]
-                        ));
-                    }
-                }
-            }
-            delete lastRoundTotal;
-        }else {
-            for(uint256 i = 0; i < predefinedCurrencies.length; i++) {
-                if(address(predefinedCurrencies[i]) == address(0)) {
-                    payable(owner).transfer(address(this).balance);
-                }else {
-                    IERC20(predefinedCurrencies[i]).transfer(owner, 
-                    IERC20(predefinedCurrencies[i]).balanceOf(address(this)));
-                }
+        bool canOwnerWithdrawCurrent = canOwnerWithdrawCurrentTotal();
+        for(uint256 i = 0; i < predefinedCurrencies.length; i++) {
+            uint amount = calculateOwnerAmount(i);
+            sendOwnerAmount(amount, i);
+            if(canOwnerWithdrawCurrent) {
                 delete currentRoundTotal;
+                delete lastRoundTotal;
+            }else {
                 delete lastRoundTotal;
             }
         }
+    }
+    function setCurrentRoundTotal(address currency, uint indx) internal {
+        if(currency == address(0)) {
+            currentRoundTotal[indx] = SafeMath.sub(
+                address(this).balance, lastRoundTotal[indx]
+            );
+        }else {
+            currentRoundTotal[indx] = SafeMath.sub(
+                IERC20(predefinedCurrencies[indx]).balanceOf(address(this))
+                ,lastRoundTotal[indx]);
+        }
+    }
+    //returns the index of the employee in the list array
+    function getEmployeeIndex(address employee) internal view returns(uint) {
+        uint indx;
+        for(uint i = 0; i < list.length; i++) {
+            if(list[i].employee == employee) {
+                indx = i; 
+                break;
+            }
+        }
+        return indx;
+    }
+    function sendAmount(address to, uint256 amount, uint receiverIndx, uint currencyIndx) internal {
+        if(address(list[receiverIndx].currencies[currencyIndx]) == address(0)) {
+            payable(to).transfer(amount);
+        }else {
+            IERC20(list[receiverIndx].currencies[currencyIndx]).transfer(to, amount);
+        }
+    }
+    function sendOwnerAmount(uint amount, uint currencyIndx) internal {
+        if(predefinedCurrencies[currencyIndx] == address(0)) {
+            payable(owner).transfer(amount);
+        }else {
+            IERC20(predefinedCurrencies[currencyIndx]).transfer(owner, amount);
+        }
+    }
+    function subtractTotal(uint amount, uint currencyIndx) internal {
+        if(block.timestamp < unlockTime) {
+            lastRoundTotal[currencyIndx] -= amount;
+        }else {
+            currentRoundTotal[currencyIndx] -= amount;
+        }
+    }
+    function canOwnerWithdrawCurrentTotal() internal view returns(bool) {
+        if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))) {
+            return false;
+        }else {
+            return true;
+        }
+    }
+    function calculateOwnerAmount(uint currencyIndx) internal view returns(uint256) {
+        uint amount;
+        uint subtractionAmount; 
+        if(!canOwnerWithdrawCurrentTotal()) {
+            subtractionAmount = currentRoundTotal[currencyIndx];
+        }
+        if(address(predefinedCurrencies[currencyIndx]) == address(0)) {
+            amount = SafeMath.sub(address(this).balance, subtractionAmount);
+        }else {
+            amount = SafeMath.sub(IERC20(predefinedCurrencies[currencyIndx])
+                .balanceOf(address(this)), subtractionAmount);
+        }
+        return amount;
     }
 }
