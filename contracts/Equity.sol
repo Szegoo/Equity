@@ -102,14 +102,18 @@ contract Equity is IEquity{
         }
     }
     function setCurrentRoundTotal(address currency, uint indx) internal {
+        uint lastTotal = 0;
+        if(lastRoundTotal.length >= indx) {
+            lastTotal = lastRoundTotal[indx];
+        }
         if(currency == address(0)) {
             currentRoundTotal[indx] = SafeMath.sub(
-                address(this).balance, lastRoundTotal[indx]
+                address(this).balance, lastTotal
             );
         }else {
             currentRoundTotal[indx] = SafeMath.sub(
                 IERC20(predefinedCurrencies[indx]).balanceOf(address(this))
-                ,lastRoundTotal[indx]);
+                ,lastTotal);
         }
     }
     //returns the index of the employee in the list array
