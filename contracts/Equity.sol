@@ -103,7 +103,7 @@ contract Equity is IEquity{
     }
     function setCurrentRoundTotal(address currency, uint indx) internal {
         uint lastTotal = 0;
-        if(lastRoundTotal.length >= indx) {
+        if(lastRoundTotal.length > indx) {
             lastTotal = lastRoundTotal[indx];
         }
         if(currency == address(0)) {
