@@ -10,6 +10,10 @@ contract List {
         address[] currencies;
         uint256[] amounts;
     }
+    struct Currency {
+        address currency;
+        uint amount;
+    }
 
     address public oracle;
     uint256 public unlockTime;
@@ -31,6 +35,18 @@ contract List {
     modifier onlyOracle {
         require(msg.sender == oracle, "Only the oracle is able to call this function");
         _;
+    }
+    //returns all the currencies for the specific employee
+    function getCurrencies(uint256 employeeId) public view returns(Currency[] memory) {
+        //the length of the array is equal to the length of the
+        //currency array for the specific user
+        Currency[] memory currencies = new Currency[](list[employeeId].currencies.length);
+        for(uint i = 0; i < list[employeeId].currencies.length; i++) {
+            address currency = list[employeeId].currencies[i];
+            uint amount = list[employeeId].amounts[i];
+            currencies[i] = Currency(currency, amount);
+        }
+        return currencies;
     }
     function setEquityContract(address contractAddress) public onlyOwner {
         //checking if the equity contract is already set
