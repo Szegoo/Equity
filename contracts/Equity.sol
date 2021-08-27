@@ -81,7 +81,7 @@ contract Equity is IEquity{
         for(uint j = 0; j < amounts.length; j++) {
             if(amounts[j] > 0) {
                 sendAmount(msg.sender, amounts[j], indx, j);
-                subtractTotal(amounts[j], j);
+                subtractTotal(amounts[j], list[indx].currencies[j]);
             }
         }
     }
@@ -142,12 +142,23 @@ contract Equity is IEquity{
             IERC20(predefinedCurrencies[currencyIndx]).transfer(owner, amount);
         }
     }
-    function subtractTotal(uint amount, uint currencyIndx) internal {
+    function subtractTotal(uint amount, address currency) internal {
+        uint currencyIndx = getCurrencyIndx(currency);
         if(block.timestamp < unlockTime) {
             lastRoundTotal[currencyIndx] -= amount;
         }else {
             currentRoundTotal[currencyIndx] -= amount;
         }
+    }
+    function getCurrencyIndx(address currency) internal view returns(uint256) {
+        uint indx;
+        for(uint256 i = 0; i < predefinedCurrencies.length; i++) {
+            if(predefinedCurrencies[i] == currency) {
+                indx = i;
+                break;
+            }
+        }
+        return indx;
     }
     function canOwnerWithdrawCurrentTotal() internal view returns(bool) {
         if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))) {
