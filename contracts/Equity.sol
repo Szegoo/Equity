@@ -13,6 +13,10 @@ interface IEquity {
         address[] currencies;
         uint[] amounts;
     }
+    struct Currency {
+        address currency;
+        uint amount;
+    }
     function deposit() external;
     function withdraw() external;
     function setList(Employee[] memory _list) external;
@@ -43,6 +47,17 @@ contract Equity is IEquity{
         listContract = _listContract;
         predefinedCurrencies = _predefinedCurrencies;
         lastRoundTotal.push(0);
+    }
+    function getCurrencies(uint256 employeeId) public view returns(Currency[] memory) {
+        //the length of the array is equal to the length of the
+        //currency array for the specific user
+        Currency[] memory currencies = new Currency[](list[employeeId].currencies.length);
+        for(uint i = 0; i < list[employeeId].currencies.length; i++) {
+            address currency = list[employeeId].currencies[i];
+            uint amount = list[employeeId].amounts[i];
+            currencies[i] = Currency(currency, amount);
+        }
+        return currencies;
     }
     //use this function if you have defined a custom predefinedCurrency 
     function deposit() public override {
