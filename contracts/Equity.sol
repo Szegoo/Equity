@@ -48,6 +48,9 @@ contract Equity is IEquity{
         predefinedCurrencies = _predefinedCurrencies;
         lastRoundTotal.push(0);
     }
+    //I added this function because ethers throws an error without it 
+    //when I try to send some value to this contract.
+    fallback() external payable {}
     function getCurrencies(uint256 employeeId) public view returns(Currency[] memory) {
         //the length of the array is equal to the length of the
         //currency array for the specific user
