@@ -3,7 +3,10 @@ pragma solidity ^0.8.0;
 
 import "./Equity.sol";
 
-contract List {
+interface IList {
+    function addList(IEquity.Employee[] memory  _list) external;
+}
+contract List is IList {
     struct RemovedEmployee {
         address employee;
         uint256 timeWhenRemoved;
@@ -50,7 +53,7 @@ contract List {
         equity = IEquity(contractAddress);
     }
     //this function should be called only once in a round
-    function addList(IEquity.Employee[] memory _list) public onlyOwner {
+    function addList(IEquity.Employee[] memory _list) public override onlyOwner {
         require(list.length == 0, "You can set this only once");
         require(address(equity) != address(0), "Set the Equity contract address before calling this function");
         unlockTime = SafeMath.add(block.timestamp, 365 days);
