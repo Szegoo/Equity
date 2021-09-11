@@ -2,11 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "./Equity.sol";
+import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 
 interface IList {
     function addList(IEquity.Employee[] memory  _list) external;
 }
-contract List is IList {
+contract List is IList, ChainlinkClient {
+    using Chainlink for Chainlink.Request;
+
     struct RemovedEmployee {
         address employee;
         uint256 timeWhenRemoved;
@@ -15,6 +18,7 @@ contract List is IList {
     }
 
     address public oracle;
+    bytes32 public jobId;
     uint256 public unlockTime;
 
     address public owner;
@@ -23,16 +27,13 @@ contract List is IList {
     //this mapping stores an address only for 30 days
     RemovedEmployee[] public removedEmployees;
 
-    constructor(address _oracle) {
+    constructor(address _oracle, bytes32 _jobId) {
         owner = msg.sender;
         oracle = _oracle;
+        jobId = _jobId;
     }
     modifier onlyOwner {
         require(msg.sender == owner, "Only the owner is able to call this function");
-        _;
-    }
-    modifier onlyOracle {
-        require(msg.sender == oracle, "Only the oracle is able to call this function");
         _;
     }
     //returns all the currencies for the specific employee
@@ -69,8 +70,22 @@ contract List is IList {
             }
         }
     }
+    //ask the api if someone needs to be removed
+    function getRemovalRequest() public returns (bytes32 requestId) {
+        Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
+        request.add("get", "http://localhost:8080/removal-requests");
+
+        uint fee = 0.1 * 10 ** 18;
+        return sendChainlinkRequestTo(oracle, request, fee);
+    }
+    function fulfill(bytes32 _requestId, address[] memory employees) public recordChainlinkFulfillment(_requestId)
+    {
+        for(uint i = 0; i < employees.length; i++) {
+            remove(employees[i]);
+        }
+    }
     //only the oracle is able to call this function
-    function remove(address employee) public onlyOracle {
+    function remove(address employee) internal {
         for(uint256 i = 0; i < list.length; i++) {
             if(list[i].employee == employee) {
                 //this leaves a gap in the array
@@ -80,7 +95,7 @@ contract List is IList {
             }
         } 
     }
-    function returnRemoved(address employee) public onlyOracle {
+    function returnRemoved(address employee) internal {
         for(uint i = 0; i < removedEmployees.length; i++) {
             if(removedEmployees[i].employee == employee) {
                 //you have only 30 days to return an employee to the list

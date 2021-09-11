@@ -1,3 +1,4 @@
+//SPDX-License-Identifier: Unlicense
 import "./Equity.sol";
 import "./List.sol";
 
