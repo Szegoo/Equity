@@ -27,10 +27,10 @@ contract List is IList, ChainlinkClient {
     //this mapping stores an address only for 30 days
     RemovedEmployee[] public removedEmployees;
 
-    constructor(address _oracle, bytes32 _jobId) {
+    constructor(address _oracle) {
         owner = msg.sender;
         oracle = _oracle;
-        jobId = _jobId;
+        jobId = "d5270d1c311941d0b08bead21fea7747";
     }
     modifier onlyOwner {
         require(msg.sender == owner, "Only the owner is able to call this function");
