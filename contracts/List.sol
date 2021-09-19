@@ -1,11 +1,12 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity ^0.6.7;
+pragma experimental ABIEncoderV2;
 
 import "./Equity.sol";
-import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
+import "@chainlink/contracts/src/v0.6/ChainlinkClient.sol";
 
 interface IList {
-    function addList(IEquity.Employee[] memory  _list) external;
+    function addList(IEquity.Employee[] calldata  _list) external;
 }
 contract List is IList, ChainlinkClient {
     using Chainlink for Chainlink.Request;
@@ -27,7 +28,9 @@ contract List is IList, ChainlinkClient {
     //this mapping stores an address only for 30 days
     RemovedEmployee[] public removedEmployees;
 
-    constructor(address _oracle) {
+    string public baseURL = "http://localhost:5001/removal-requests?employee=";
+
+    constructor(address _oracle) public {
         owner = msg.sender;
         oracle = _oracle;
         jobId = "d5270d1c311941d0b08bead21fea7747";
@@ -70,18 +73,31 @@ contract List is IList, ChainlinkClient {
             }
         }
     }
-    //ask the api if someone needs to be removed
-    function getRemovalRequest() public returns (bytes32 requestId) {
-        Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
-        request.add("get", "http://localhost:8080/removal-requests");
-
-        uint fee = 0.1 * 10 ** 18;
-        return sendChainlinkRequestTo(oracle, request, fee);
+    function query() public {
+        for(uint i = 0; i < list.length; i++) {
+            getRemovalRequest(i);
+        }
     }
-    function fulfill(bytes32 _requestId, address[] memory employees) public recordChainlinkFulfillment(_requestId)
+    //ask the api if someone needs to be removed
+    function getRemovalRequest(uint i) public returns (bytes32 requestId) {
+            Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
+            //the employees in the contract have the same indexes as the employees in the db
+            string memory url = concat(baseURL, uint2str(i));
+            request.add("get", url);
+            uint fee = 0.1 * 10 ** 18;
+            return sendChainlinkRequestTo(oracle, request, fee);
+    }
+    function fulfill(bytes32 _requestId, int256 indx) public recordChainlinkFulfillment(_requestId)
     {
-        for(uint i = 0; i < employees.length; i++) {
-            remove(employees[i]);
+        /*
+          -1 will indicate that the contract should not 
+          remove anyone from the list.
+          if the indx is > -1 then the employee at indx should be removed
+        */
+        if(indx == -1) {
+            return;
+        }else {
+            remove(list[uint(indx)].employee);
         }
     }
     //only the oracle is able to call this function
@@ -110,5 +126,46 @@ contract List is IList, ChainlinkClient {
     function sendList() internal {
         equity.setList(list);
         delete list;
+    }
+    function concat(string memory _base, string memory _value) internal returns (string memory) {
+        bytes memory _baseBytes = bytes(_base);
+        bytes memory _valueBytes = bytes(_value);
+
+        string memory _tmpValue = new string(_baseBytes.length + _valueBytes.length);
+        bytes memory _newValue = bytes(_tmpValue);
+
+        uint i;
+        uint j;
+
+        for(i=0; i<_baseBytes.length; i++) {
+            _newValue[j++] = _baseBytes[i];
+        }
+
+        for(i=0; i<_valueBytes.length; i++) {
+            _newValue[j++] = _valueBytes[i];
+        }
+
+        return string(_newValue);
+    }
+    function uint2str(uint _i) internal pure returns (string memory _uintAsString) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint j = _i;
+        uint len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint k = len;
+        while (_i != 0) {
+            k = k-1;
+            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            _i /= 10;
+        }
+        return string(bstr);
     }
 }
