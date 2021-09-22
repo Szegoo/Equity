@@ -28,8 +28,6 @@ contract List is IList, ChainlinkClient {
     //this mapping stores an address only for 30 days
     RemovedEmployee[] public removedEmployees;
 
-    string public baseURL = "http://localhost:5001/removal-requests?employee=";
-
     constructor(address _oracle) public {
         owner = msg.sender;
         oracle = _oracle;
@@ -73,31 +71,44 @@ contract List is IList, ChainlinkClient {
             }
         }
     }
-    function query() public {
-        for(uint i = 0; i < list.length; i++) {
-            getRemovalRequest(i);
-        }
-    }
     //ask the api if someone needs to be removed
-    function getRemovalRequest(uint i) public returns (bytes32 requestId) {
-            Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
-            //the employees in the contract have the same indexes as the employees in the db
-            string memory url = concat(baseURL, uint2str(i));
-            request.add("get", url);
+    function shouldRemove() public returns (bytes32 requestId) {
+            Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getResponse.selector);
+            request.add("get", "http://localhost:3000/should-remove");
             uint fee = 0.1 * 10 ** 18;
             return sendChainlinkRequestTo(oracle, request, fee);
     }
-    function fulfill(bytes32 _requestId, int256 indx) public recordChainlinkFulfillment(_requestId)
+    //get the number of the employees that should be removed
+    function getNumberOfEmployees() public returns(bytes requestId) {
+        Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getNumber.selector);
+        request.add("get", "http://localhost:3000/get-number-of-employees");
+        uint fee = 0.1 * 10 ** 18;
+        return sendChainlinkRequestTo(oracle, request, fee);
+    }
+    function getEmployeeAtIndx(uint8 i) public returns(bytes requestId) {
+        Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getAddress.selector);
+        string indx = uint2str(i);
+        string url = concat("http://localhost:3000/get-employee?indx=", indx);
+        request.add("get", url);
+        uint fee = 0.1 * 10 ** 18;
+        return sendChainlinkRequestTo(oracle, request, fee);
+    }
+    function getAddress(bytes32 _requestId, bytes data) public recordChainlinkFulfillment(_requestId) {
+        address employee = bytesToAddress(data);
+
+        remove(employee);
+    }
+    function getNumber(bytes32 _requestId, uint number) public recordChainlinkFulfillment(_requestId) {
+        for(uint8 i = 0; i < number; i++) {
+            getEmployeeAtIndx(i);
+        }
+    }
+    function getResponse(bytes32 _requestId, bool remove) public recordChainlinkFulfillment(_requestId)
     {
-        /*
-          -1 will indicate that the contract should not 
-          remove anyone from the list.
-          if the indx is > -1 then the employee at indx should be removed
-        */
-        if(indx == -1) {
+        if(!remove) {
             return;
         }else {
-            remove(list[uint(indx)].employee);
+            getNumberOfEmployees();
         }
     }
     //only the oracle is able to call this function
@@ -126,6 +137,11 @@ contract List is IList, ChainlinkClient {
     function sendList() internal {
         equity.setList(list);
         delete list;
+    }
+    function bytesToAddress(bytes bys) private pure returns (address addr) {
+        assembly {
+            addr := mload(add(bys,20))
+        } 
     }
     function concat(string memory _base, string memory _value) internal returns (string memory) {
         bytes memory _baseBytes = bytes(_base);
