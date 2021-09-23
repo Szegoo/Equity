@@ -74,21 +74,21 @@ contract List is IList, ChainlinkClient {
     //ask the api if someone needs to be removed
     function shouldRemove() public returns (bytes32 requestId) {
             Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getResponse.selector);
-            request.add("get", "http://localhost:3000/should-remove");
+            request.add("get", "http://localhost:3000/remove");
             uint fee = 0.1 * 10 ** 18;
             return sendChainlinkRequestTo(oracle, request, fee);
     }
     //get the number of the employees that should be removed
     function getNumberOfEmployees() public returns(bytes requestId) {
         Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getNumber.selector);
-        request.add("get", "http://localhost:3000/get-number-of-employees");
+        request.add("get", "http://localhost:3000/number-of-employees");
         uint fee = 0.1 * 10 ** 18;
         return sendChainlinkRequestTo(oracle, request, fee);
     }
     function getEmployeeAtIndx(uint8 i) public returns(bytes requestId) {
         Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getAddress.selector);
         string indx = uint2str(i);
-        string url = concat("http://localhost:3000/get-employee?indx=", indx);
+        string url = concat("http://localhost:3000/employee?indx=", indx);
         request.add("get", url);
         uint fee = 0.1 * 10 ** 18;
         return sendChainlinkRequestTo(oracle, request, fee);
