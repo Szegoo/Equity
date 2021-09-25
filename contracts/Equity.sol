@@ -4,6 +4,7 @@ pragma solidity ^0.6.7;
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+pragma experimental ABIEncoderV2;
 
 interface IEquity {
     struct Employee {
@@ -19,7 +20,7 @@ interface IEquity {
     }
     function deposit() external;
     function withdraw() external;
-    function setList(Employee[] memory _list) external;
+    function setList(Employee[] calldata _list) external;
     function ownerWithdraw() external;
 }
 contract Equity is IEquity{
@@ -42,7 +43,7 @@ contract Equity is IEquity{
     //to use the currency of the blockchain(e.g ETH) set the
     //address of _predefinedCurrency.currency 
     //to address 0x0000000000000000000000000000000000000000
-    constructor(address _listContract, address[] memory _predefinedCurrencies) {
+    constructor(address _listContract, address[] memory _predefinedCurrencies) public {
         owner = msg.sender;
         listContract = _listContract;
         predefinedCurrencies = _predefinedCurrencies;
@@ -51,6 +52,7 @@ contract Equity is IEquity{
     //I added this function because ethers throws an error without it 
     //when I try to send some value to this contract.
     fallback() external payable {}
+    receive() external payable {}
     function getCurrencies(uint256 employeeId) public view returns(Currency[] memory) {
         //the length of the array is equal to the length of the
         //currency array for the specific user

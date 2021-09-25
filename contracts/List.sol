@@ -18,8 +18,8 @@ contract List is IList, ChainlinkClient {
         uint256[] amounts;
     }
 
-    address public booleanOracle;
-    address public numberOracle;
+    address public booleanOracle = 0xE9ac2C2e5906e67fBc0bDA89f0aD327022f2b7fB;
+    address public numberOracle = 0x12EDD40D4E171568A4927B83ed17e5bb0c257b80;
     address public bytesOracle;
 
     bytes32 public booleanJobId;
