@@ -79,21 +79,21 @@ contract List is IList, ChainlinkClient {
             return sendChainlinkRequestTo(oracle, request, fee);
     }
     //get the number of the employees that should be removed
-    function getNumberOfEmployees() public returns(bytes requestId) {
+    function getNumberOfEmployees() public returns(bytes32 requestId) {
         Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getNumber.selector);
         request.add("get", "http://localhost:3000/number-of-employees");
         uint fee = 0.1 * 10 ** 18;
         return sendChainlinkRequestTo(oracle, request, fee);
     }
-    function getEmployeeAtIndx(uint8 i) public returns(bytes requestId) {
+    function getEmployeeAtIndx(uint8 i) public returns(bytes32 requestId) {
         Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getAddress.selector);
-        string indx = uint2str(i);
-        string url = concat("http://localhost:3000/employee?indx=", indx);
+        string memory indx = uint2str(i);
+        string memory url = concat("http://localhost:3000/employee?indx=", indx);
         request.add("get", url);
         uint fee = 0.1 * 10 ** 18;
         return sendChainlinkRequestTo(oracle, request, fee);
     }
-    function getAddress(bytes32 _requestId, bytes data) public recordChainlinkFulfillment(_requestId) {
+    function getAddress(bytes32 _requestId, bytes memory data) public recordChainlinkFulfillment(_requestId) {
         address employee = bytesToAddress(data);
 
         remove(employee);
@@ -138,12 +138,12 @@ contract List is IList, ChainlinkClient {
         equity.setList(list);
         delete list;
     }
-    function bytesToAddress(bytes bys) private pure returns (address addr) {
+    function bytesToAddress(bytes memory bys) private pure returns (address addr) {
         assembly {
             addr := mload(add(bys,20))
         } 
     }
-    function concat(string memory _base, string memory _value) internal returns (string memory) {
+    function concat(string memory _base, string memory _value) internal pure returns (string memory) {
         bytes memory _baseBytes = bytes(_base);
         bytes memory _valueBytes = bytes(_value);
 
