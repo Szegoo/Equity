@@ -18,8 +18,14 @@ contract List is IList, ChainlinkClient {
         uint256[] amounts;
     }
 
-    address public oracle;
-    bytes32 public jobId;
+    address public booleanOracle;
+    address public numberOracle;
+    address public bytesOracle;
+
+    bytes32 public booleanJobId;
+    bytes32 public numberJobId;
+    bytes32 public bytesJobId;
+    
     uint256 public unlockTime;
 
     address public owner;
@@ -28,10 +34,8 @@ contract List is IList, ChainlinkClient {
     //this mapping stores an address only for 30 days
     RemovedEmployee[] public removedEmployees;
 
-    constructor(address _oracle) public {
+    constructor() public {
         owner = msg.sender;
-        oracle = _oracle;
-        jobId = "d5270d1c311941d0b08bead21fea7747";
     }
     modifier onlyOwner {
         require(msg.sender == owner, "Only the owner is able to call this function");
@@ -54,6 +58,18 @@ contract List is IList, ChainlinkClient {
         require(address(equity) == address(0), "The equity contract is already set");
         equity = IEquity(contractAddress);
     }
+    function changeOracle(address _booleanOracle, address _numberOracle, 
+    address _bytesOracle, bytes32 _booleanJobId, bytes32 _numberJobId,
+    bytes32 _bytesJobId) 
+    public onlyOwner {
+        booleanOracle = _booleanOracle;
+        numberOracle = _numberOracle;
+        bytesOracle = _bytesOracle;
+
+        booleanJobId = _booleanJobId;
+        numberJobId = _numberJobId;
+        bytesJobId = _bytesJobId;
+    }
     //this function should be called only once in a round
     function addList(IEquity.Employee[] memory _list) public override onlyOwner {
         require(list.length == 0, "You can set this only once");
@@ -73,25 +89,25 @@ contract List is IList, ChainlinkClient {
     }
     //ask the api if someone needs to be removed
     function shouldRemove() public returns (bytes32 requestId) {
-            Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getResponse.selector);
+            Chainlink.Request memory request = buildChainlinkRequest(booleanJobId, address(this), this.getResponse.selector);
             request.add("get", "http://localhost:3000/remove");
             uint fee = 0.1 * 10 ** 18;
-            return sendChainlinkRequestTo(oracle, request, fee);
+            return sendChainlinkRequestTo(booleanOracle, request, fee);
     }
     //get the number of the employees that should be removed
     function getNumberOfEmployees() public returns(bytes32 requestId) {
-        Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getNumber.selector);
+        Chainlink.Request memory request = buildChainlinkRequest(numberJobId, address(this), this.getNumber.selector);
         request.add("get", "http://localhost:3000/number-of-employees");
         uint fee = 0.1 * 10 ** 18;
-        return sendChainlinkRequestTo(oracle, request, fee);
+        return sendChainlinkRequestTo(numberOracle, request, fee);
     }
     function getEmployeeAtIndx(uint8 i) public returns(bytes32 requestId) {
-        Chainlink.Request memory request = buildChainlinkRequest(jobId, address(this), this.getAddress.selector);
+        Chainlink.Request memory request = buildChainlinkRequest(bytesJobId, address(this), this.getAddress.selector);
         string memory indx = uint2str(i);
         string memory url = concat("http://localhost:3000/employee?indx=", indx);
         request.add("get", url);
         uint fee = 0.1 * 10 ** 18;
-        return sendChainlinkRequestTo(oracle, request, fee);
+        return sendChainlinkRequestTo(bytesOracle, request, fee);
     }
     function getAddress(bytes32 _requestId, bytes memory data) public recordChainlinkFulfillment(_requestId) {
         address employee = bytesToAddress(data);
