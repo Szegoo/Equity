@@ -35,6 +35,7 @@ contract List is IList, ChainlinkClient {
     RemovedEmployee[] public removedEmployees;
 
     constructor() public {
+        setPublicChainlinkToken();
         owner = msg.sender;
     }
     modifier onlyOwner {
