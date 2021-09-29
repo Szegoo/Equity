@@ -79,22 +79,25 @@ contract List is IList, ChainlinkClient {
     //ask the api if someone needs to be removed
     function shouldRemove() public returns (bytes32 requestId) {
             Chainlink.Request memory request = buildChainlinkRequest(booleanJobId, address(this), this.getResponse.selector);
-            request.add("get", "http://localhost:3000/remove");
+            request.add("get", "http://188.2.25.92:5001/remove");
+            request.add("path", "remove");
             uint fee = 0.1 * 10 ** 18;
             return sendChainlinkRequestTo(booleanOracle, request, fee);
     }
     //get the number of the employees that should be removed
     function getNumberOfEmployees() public returns(bytes32 requestId) {
         Chainlink.Request memory request = buildChainlinkRequest(numberJobId, address(this), this.getNumber.selector);
-        request.add("get", "http://localhost:3000/number-of-employees");
+        request.add("get", "http://188.2.25.92:5001/number-of-employees");
+        request.add("path", "number");
         uint fee = 0.1 * 10 ** 18;
         return sendChainlinkRequestTo(numberOracle, request, fee);
     }
     function getEmployeeAtIndx(uint8 i) public returns(bytes32 requestId) {
         Chainlink.Request memory request = buildChainlinkRequest(bytesJobId, address(this), this.getAddress.selector);
         string memory indx = uint2str(i);
-        string memory url = concat("http://localhost:3000/employee?indx=", indx);
+        string memory url = concat("http://188.2.25.92:5001/employee?indx=", indx);
         request.add("get", url);
+        request.add("path", "employee");
         uint fee = 0.1 * 10 ** 18;
         return sendChainlinkRequestTo(bytesOracle, request, fee);
     }
