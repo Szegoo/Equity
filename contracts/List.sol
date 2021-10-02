@@ -79,6 +79,7 @@ contract List is IList, ChainlinkClient {
     }
     function check() public {
         if(now-24 hours > lastChecked) {
+            lastChecked = now;
             shouldRemove();    
         }
     }
