@@ -68,17 +68,12 @@ contract List is IList, ChainlinkClient {
         for(uint i = 0; i < _list.length; i++) {
             list.push(_list[i]);
         }
-        //We could use Chainlink keepers for automatic function calling
-        //https://docs.chain.link/docs/chainlink-keepers/introduction/
-        while(true) {
-            if(block.timestamp == unlockTime) {
-                sendList();
-                break;
-            }
-        }
     }
     function check() public {
-        if(now-24 hours > lastChecked) {
+        //the block.timestamp is not 100% accurate
+        //so the contract will allow to call shouldRemove() 
+        //2 minutes before
+        if(now-24 hours > lastChecked-2 minutes) {
             lastChecked = now;
             shouldRemove();    
         }
@@ -147,6 +142,14 @@ contract List is IList, ChainlinkClient {
                 removedEmployees[i].amounts));
                 delete removedEmployees[i];
             }
+        }
+    }
+    function checkList() public {
+        //the block.timestamp is not 100% accurate
+        //so the contract will allow to call sendList 
+        //5 minutes before
+        if(now > unlockTime-5 minutes) {
+            sendList();
         }
     }
     function sendList() internal {
