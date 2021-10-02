@@ -27,6 +27,7 @@ contract List is IList, ChainlinkClient {
     bytes32 public bytesJobId;
     
     uint256 public unlockTime;
+    uint256 public lastChecked;
 
     address public owner;
     IEquity.Employee[] public list;
@@ -76,23 +77,28 @@ contract List is IList, ChainlinkClient {
             }
         }
     }
+    function check() public {
+        if(now-24 hours > lastChecked) {
+            shouldRemove();    
+        }
+    }
     //ask the api if someone needs to be removed
-    function shouldRemove() public returns (bytes32 requestId) {
-            Chainlink.Request memory request = buildChainlinkRequest(booleanJobId, address(this), this.getResponse.selector);
-            request.add("get", "http://188.2.25.92:5001/remove");
-            request.add("path", "remove");
-            uint fee = 0.1 * 10 ** 18;
-            return sendChainlinkRequestTo(booleanOracle, request, fee);
+    function shouldRemove() internal returns (bytes32 requestId) {
+        Chainlink.Request memory request = buildChainlinkRequest(booleanJobId, address(this), this.getResponse.selector);
+        request.add("get", "http://188.2.25.92:5001/remove");
+        request.add("path", "remove");
+        uint fee = 0.1 * 10 ** 18;
+        return sendChainlinkRequestTo(booleanOracle, request, fee);
     }
     //get the number of the employees that should be removed
-    function getNumberOfEmployees() public returns(bytes32 requestId) {
+    function getNumberOfEmployees() internal returns(bytes32 requestId) {
         Chainlink.Request memory request = buildChainlinkRequest(numberJobId, address(this), this.getNumber.selector);
         request.add("get", "http://188.2.25.92:5001/number-of-employees");
         request.add("path", "number");
         uint fee = 0.1 * 10 ** 18;
         return sendChainlinkRequestTo(numberOracle, request, fee);
     }
-    function getEmployeeAtIndx(uint8 i) public returns(bytes32 requestId) {
+    function getEmployeeAtIndx(uint8 i) internal returns(bytes32 requestId) {
         Chainlink.Request memory request = buildChainlinkRequest(bytesJobId, address(this), this.getAddress.selector);
         string memory indx = uint2str(i);
         string memory url = concat("http://188.2.25.92:5001/employee?indx=", indx);
