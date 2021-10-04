@@ -60,6 +60,20 @@ contract List is IList, ChainlinkClient {
         require(address(equity) == address(0), "The equity contract is already set");
         equity = IEquity(contractAddress);
     }
+    function setOracles(address _booleanOracle, address _numberOracle, 
+        address _bytesOracle)
+    public onlyOwner {
+        booleanOracle = _booleanOracle;
+        numberOracle = _numberOracle;
+        bytesOracle = _bytesOracle;
+    }
+    function setJobIds(bytes32 _booleanJobId, bytes32 _numberJobId, 
+        bytes32 _bytesJobId)
+    public onlyOwner {
+        bytesJobId = _bytesJobId;
+        booleanJobId = _booleanJobId;
+        numberJobId = _numberJobId;
+    }
     //this function should be called only once in a round
     function addList(IEquity.Employee[] memory _list) public override onlyOwner {
         require(list.length == 0, "You can set this only once");
