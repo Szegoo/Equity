@@ -1,9 +1,9 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.6.7;
+pragma solidity ^0.8.7;
 pragma experimental ABIEncoderV2;
 
 import "./Equity.sol";
-import "@chainlink/contracts/src/v0.6/ChainlinkClient.sol";
+import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 
 interface IList {
     function addList(IEquity.Employee[] calldata  _list) external;
@@ -35,7 +35,7 @@ contract List is IList, ChainlinkClient {
     //this mapping stores an address only for 30 days
     RemovedEmployee[] public removedEmployees;
 
-    constructor() public {
+    constructor() {
         setPublicChainlinkToken();
         owner = msg.sender;
     }
@@ -87,8 +87,8 @@ contract List is IList, ChainlinkClient {
         //the block.timestamp is not 100% accurate
         //so the contract will allow to call shouldRemove() 
         //2 minutes before
-        if(now-24 hours > lastChecked-2 minutes) {
-            lastChecked = now;
+        if(block.timestamp-24 hours > lastChecked-2 minutes) {
+            lastChecked = block.timestamp;
             shouldRemove();    
         }
     }
@@ -127,9 +127,9 @@ contract List is IList, ChainlinkClient {
             getEmployeeAtIndx(i);
         }
     }
-    function getResponse(bytes32 _requestId, bool remove) public recordChainlinkFulfillment(_requestId)
+    function getResponse(bytes32 _requestId, bool _remove) public recordChainlinkFulfillment(_requestId)
     {
-        if(!remove) {
+        if(!_remove) {
             return;
         }else {
             getNumberOfEmployees();
@@ -162,7 +162,7 @@ contract List is IList, ChainlinkClient {
         //the block.timestamp is not 100% accurate
         //so the contract will allow to call sendList 
         //5 minutes before
-        if(now > unlockTime-5 minutes) {
+        if(block.timestamp > unlockTime-5 minutes) {
             sendList();
         }
     }

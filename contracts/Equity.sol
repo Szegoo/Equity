@@ -1,10 +1,10 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.6.7;
+pragma solidity ^0.8.7;
+pragma experimental ABIEncoderV2;
 
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-pragma experimental ABIEncoderV2;
 
 interface IEquity {
     struct Employee {
@@ -43,14 +43,12 @@ contract Equity is IEquity{
     //to use the currency of the blockchain(e.g ETH) set the
     //address of _predefinedCurrency.currency 
     //to address 0x0000000000000000000000000000000000000000
-    constructor(address _listContract, address[] memory _predefinedCurrencies) public {
+    constructor(address _listContract, address[] memory _predefinedCurrencies) {
         owner = msg.sender;
         listContract = _listContract;
         predefinedCurrencies = _predefinedCurrencies;
         lastRoundTotal.push(0);
     }
-    //I added this function because ethers throws an error without it 
-    //when I try to send some value to this contract.
     fallback() external payable {}
     receive() external payable {}
     function getCurrencies(uint256 employeeId) public view returns(Currency[] memory) {
