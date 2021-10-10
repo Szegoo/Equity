@@ -32,7 +32,8 @@ contract Equity is IEquity{
     uint256 public unlockTime;
     uint256 public lastUnlockTime;
     //2 years
-    uint256 public lockPeriod = 2;
+
+    uint256 public timeToWait;
     
     //employee -> amount
     Employee[] public list;
@@ -43,11 +44,12 @@ contract Equity is IEquity{
     //to use the currency of the blockchain(e.g ETH) set the
     //address of _predefinedCurrency.currency 
     //to address 0x0000000000000000000000000000000000000000
-    constructor(address _listContract, address[] memory _predefinedCurrencies) {
+    constructor(address _listContract, address[] memory _predefinedCurrencies, uint _timeToWait) {
         owner = msg.sender;
         listContract = _listContract;
         predefinedCurrencies = _predefinedCurrencies;
         lastRoundTotal.push(0);
+        timeToWait = _timeToWait;
     }
     fallback() external payable {}
     receive() external payable {}
@@ -87,8 +89,8 @@ contract Equity is IEquity{
         unlockTime = block.timestamp;
     }
     function withdraw() public override {
-        require(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(lockPeriod, 365 days))
-        || block.timestamp < SafeMath.add(lastUnlockTime, SafeMath.mul(lockPeriod, 365 days)), 
+        require(block.timestamp < SafeMath.add(unlockTime, timeToWait)
+        || block.timestamp < SafeMath.add(lastUnlockTime, timeToWait), 
         "Your are not allowed to withdraw anymore");
         require(unlockTime < block.timestamp || lastUnlockTime < block.timestamp,
          "Your are not allowed to withdraw yet");
@@ -105,13 +107,18 @@ contract Equity is IEquity{
     }
     function ownerWithdraw() public override {
         require(msg.sender == owner, "Only the owner is able to call this function");
-        require(block.timestamp > SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))
-        || block.timestamp > SafeMath.add(lastUnlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days)),
+        require(block.timestamp > SafeMath.add(unlockTime, timeToWait)
+        || block.timestamp > SafeMath.add(lastUnlockTime, timeToWait),
         "You are not able to withdraw yet");
         for(uint256 i = 0; i < predefinedCurrencies.length; i++) {
             uint amount = calculateOwnerAmount(i);
             sendOwnerAmount(amount, i);
             bool canOwnerWithdrawCurrent = canOwnerWithdrawCurrentTotal();
+            /*
+                if the employer can withdraw from the current round
+                the contract can be 100% sure that he can also withdraw
+                the last round total.
+            */
             if(canOwnerWithdrawCurrent) {
                 delete currentRoundTotal;
                 delete lastRoundTotal;
@@ -179,28 +186,33 @@ contract Equity is IEquity{
         return indx;
     }
     function canOwnerWithdrawCurrentTotal() internal view returns(bool) {
-        if(block.timestamp < SafeMath.add(unlockTime, SafeMath.mul(SafeMath.mul(lockPeriod, 2), 365 days))) {
-            return false;
-        }else {
+        /*
+            the employer can withdraw the current round total
+            if the current time is greater than the unlock time for
+            the employee + whatever the value of timeToWait is
+        */
+        if(block.timestamp > SafeMath.add(unlockTime, timeToWait)) {
             return true;
+        }else {
+            return false;
         }
     }
     function calculateOwnerAmount(uint currencyIndx) internal view returns(uint256) {
         uint amount;
-        uint subtractionAmount; 
+        uint subtractedAmount; 
         if(!canOwnerWithdrawCurrentTotal()) {
-            subtractionAmount = currentRoundTotal[currencyIndx];
+            subtractedAmount = currentRoundTotal[currencyIndx];
         }
         if(address(predefinedCurrencies[currencyIndx]) == address(0)) {
-            amount = SafeMath.sub(address(this).balance, subtractionAmount);
+            amount = SafeMath.sub(address(this).balance, subtractedAmount);
         }else {
             amount = SafeMath.sub(IERC20(predefinedCurrencies[currencyIndx])
-                .balanceOf(address(this)), subtractionAmount);
+                .balanceOf(address(this)), subtractedAmount);
         }
         return amount;
     }
     function setUnlockTime() internal {
         lastUnlockTime = unlockTime;
-        unlockTime = SafeMath.add(block.timestamp, SafeMath.mul(lockPeriod, 365 days));
+        unlockTime = SafeMath.add(block.timestamp, timeToWait);
     }
 }

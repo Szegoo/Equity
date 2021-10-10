@@ -29,15 +29,18 @@ contract List is IList, ChainlinkClient {
     uint256 public unlockTime;
     uint256 public lastChecked;
 
+    uint256 public timeToWait = 2 * 365 days;
+
     address public owner;
     IEquity.Employee[] public list;
     IEquity public equity;
     //this mapping stores an address only for 30 days
     RemovedEmployee[] public removedEmployees;
 
-    constructor() {
+    constructor(uint _timeToWait) {
         setPublicChainlinkToken();
         owner = msg.sender;
+        timeToWait = _timeToWait;
     }
     modifier onlyOwner {
         require(msg.sender == owner, "Only the owner is able to call this function");
@@ -78,7 +81,7 @@ contract List is IList, ChainlinkClient {
     function addList(IEquity.Employee[] memory _list) public override onlyOwner {
         require(list.length == 0, "You can set this only once");
         require(address(equity) != address(0), "Set the Equity contract address before calling this function");
-        unlockTime = SafeMath.add(block.timestamp, 365 days);
+        unlockTime = SafeMath.add(block.timestamp, timeToWait);
         for(uint i = 0; i < _list.length; i++) {
             list.push(_list[i]);
         }

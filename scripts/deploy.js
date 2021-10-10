@@ -19,7 +19,8 @@ main().then(() => process.exit(0))
 async function deployList() {
 	console.log("Deploying List contract...");
 	const ListContract = await ethers.getContractFactory('List');
-	const listContract = await ListContract.deploy();
+	//timeToWait is defined in seconds
+	const listContract = await ListContract.deploy(120);
 
 	console.log(`List contract deployed at: ${listContract.address}`);
 	return listContract;
@@ -28,7 +29,7 @@ async function deployEquity(listContract, currencies) {
 	console.log("Deploying Equity contract...");
 	const EquityContract = await ethers.getContractFactory('Equity');
 	const equityContract = await EquityContract.deploy(listContract, 
-		currencies);
+		currencies, 120);
 	console.log(`Equity contract deployed at: ${equityContract.address}`);
 	return equityContract.address;
 }
