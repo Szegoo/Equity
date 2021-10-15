@@ -7,7 +7,7 @@ async function main() {
 	const equityAddress = await deployEquity(listContract.address, 
 		["0x0000000000000000000000000000000000000000"])
 	await listContract.setEquityContract(equityAddress);
-
+	await sendLink(listContract.address);
 }
 
 main().then(() => process.exit(0))
@@ -32,4 +32,14 @@ async function deployEquity(listContract, currencies) {
 		currencies, 120);
 	console.log(`Equity contract deployed at: ${equityContract.address}`);
 	return equityContract.address;
+}
+async function sendLink(listAddr) {
+	console.log(`sending link to List Contract(${listAddr})`);
+	const LinkToken = await ethers.getContractFactory("LinkToken");
+
+	//setting the address of the link token deployed on the kovan testnet
+	const linkToken = await LinkToken.attach(
+		"0xa36085F69e2889c224210F603D836748e7dC0088"
+	)
+	await linkToken.transfer(listAddr, Math.pow(10, 18).toString());
 }
