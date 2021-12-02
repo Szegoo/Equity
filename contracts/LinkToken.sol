@@ -2,7 +2,5 @@
 pragma solidity ^0.8.7;
 
 contract LinkToken {
-    function transfer(address recepient, uint amount) public returns(bool) {
-
-    }
+    function transfer(address recepient, uint256 amount) public returns (bool) {}
 }

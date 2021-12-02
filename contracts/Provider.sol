@@ -14,7 +14,7 @@ contract Provider {
         listContract = IList(listAddress);
     }
 
-    modifier onlyOwner {
+    modifier onlyOwner() {
         require(msg.sender == owner, "Only the owner is able to call this function");
         _;
     }
@@ -22,16 +22,20 @@ contract Provider {
     fallback() external payable {}
 
     function sendListWithCurrencies(IEquity.Employee[] memory _list) public {
-        for(uint i = 0; i < _list.length; i++) {
-            for(uint k = 0; k < _list[i].currencies.length; k++) {
+        for (uint256 i = 0; i < _list.length; i++) {
+            for (uint256 k = 0; k < _list[i].currencies.length; k++) {
                 address currency = _list[i].currencies[k];
-                uint amount = _list[i].amounts[k];
-                if(currency== address(0)) {
-                    require(address(this).balance >=amount, 
-                    "The contract does not have enough balance for this transaction.");
-                }else {
-                    require(IERC20(currency).balanceOf(address(this)) >= amount,
-                    "The contract does not have enough balance for this transaction.");
+                uint256 amount = _list[i].amounts[k];
+                if (currency == address(0)) {
+                    require(
+                        address(this).balance >= amount,
+                        "The contract does not have enough balance for this transaction."
+                    );
+                } else {
+                    require(
+                        IERC20(currency).balanceOf(address(this)) >= amount,
+                        "The contract does not have enough balance for this transaction."
+                    );
                 }
             }
         }

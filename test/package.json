@@ -2,10 +2,6 @@
   "name": "hardhat-project",
   "scripts": {
     "deploy": "npx hardhat run scripts/deploy.js --network kovan",
-    "test": "npx hardhat test",
-    "lint": "solhint --config ./.solhint.json ./contracts/*.sol",
-    "prettier": "prettier --config ./.prettierrc --write \"**/**.{json,md,sol,ts}\"",
-    "prettier:check": "prettier --check --config ./.prettierrc \"**/*.{json,md,sol,ts}\"",
     "reset": "npx run hardhat --reset"
   },
   "devDependencies": {
@@ -14,14 +10,11 @@
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.4",
-    "hardhat": "^2.6.0",
-    "prettier": "^2.5.0",
-    "solhint-plugin-prettier": "^0.0.5"
+    "hardhat": "^2.6.0"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.2.1",
     "@openzeppelin/contracts": "^4.2.0",
-    "dotenv": "^10.0.0",
-    "solhint": "^3.3.6"
+    "dotenv": "^10.0.0"
   }
 }
